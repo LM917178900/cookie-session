@@ -1,6 +1,8 @@
 package com.example.demo.cookie.session;
 
 import com.example.demo.cookie.constants.CommonConstants;
+import com.example.demo.cookie.constants.Constants;
+import com.example.demo.cookie.model.Userdetail;
 import com.example.demo.cookie.util.CookieUtils;
 import com.example.demo.cookie.util.RedisUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Date;
 
 /**
  * @description: SessionService
@@ -40,6 +43,96 @@ public class SessionService {
     @Value("${custom.config.aes.key}")
     private String aesKey;
 
+    /**
+     * 查询用户信息，然后，将用户信息和sessionId 分别保存到redis
+     *
+     * @param request
+     * @param response
+     * @return
+     */
+    public Userdetail login(HttpServletRequest request, HttpServletResponse response) {
+
+        // 通过传参获取用户
+        Userdetail userdetail = readUserdetail(request);
+        if (userdetail != null) {
+            Integer userid = userdetail.getId();
+
+            // 获取sessionId
+            String sessionId = ensureSessionId(request, response, userid);
+
+            // 将用户信息和sessionId 分别保存到redis
+            saveUserdetailToSession(sessionId, userdetail);
+        }
+        return userdetail;
+    }
+
+    private void saveUserdetailToSession(String sessionId, Userdetail userdetail) {
+
+        // 设置过期时间 30 分钟
+        long expireAt = System.currentTimeMillis() + sessionTTL * 1000;
+        userdetail.setExpireAt(expireAt);
+
+        // 将用户信息 和sessionId 分别存入redis
+        redisUtils.hset(sessionkey(sessionId), udItemKey, userdetail, new Date(expireAt));
+        redisUtils.set(desessionkey(String.valueOf(userdetail.getId())), sessionId, new Date(expireAt));
+    }
+
+    /**
+     * 所有数据都放在 request 中
+     *
+     * @param request
+     * @return
+     */
+    private Userdetail readUserdetail(HttpServletRequest request) {
+
+        // 获取数据
+//        String origin = request.getParameter("o");
+//        String username = request.getParameter("u");
+//        String password = request.getParameter("p");
+//
+//        if (StringUtils.isBlank(origin)) {
+//            origin = (String) request.getAttribute("o");
+//        }
+//        if (StringUtils.isBlank(origin)) {
+//            origin = Constants.USER_ORIGIN_LOCAL;
+//        }
+//        if (StringUtils.isBlank(username)) {
+//            username = (String) request.getAttribute("u");
+//        }
+//        if (StringUtils.isBlank(password)) {
+//            password = (String) request.getAttribute("p");
+//        }
+//
+//        if (StringUtils.isNotBlank(username)) {
+//
+//            // 解析密码，将加密后的密码破解为明文密码；
+//            try {
+//                password = AesUtils.aesDecrypt(password, aesKey);
+//            } catch (Exception e) {
+//                LOGGER.error("decrypt password error,password=[{}],key=[{}]", password, aesKey);
+//                e.printStackTrace();
+//            }
+//
+//            // 获取满足指定用户密码的有效用户
+//            Userdetail userdetail = authService.getUserdetail(origin, username, password);
+//            if (userdetail != null) {
+//                if (AcUserEnum.IN_ACTIVE.getCode().equals(userdetail.getState())) {
+//                    throw new BussinessException("this account has been inactive");
+//                }
+//
+//                // 获取成功，更新登录时间；
+//                acUserService.updateLastLoginTime(origin, username);
+//                return userdetail;
+//            }
+//
+//            // 获取失败返回null
+//            else {
+//                return null;
+//            }
+//        } else {
+            return null;
+//        }
+    }
 
     /**
      * 从redis 获取动态验证码
@@ -121,7 +214,7 @@ public class SessionService {
     }
 
     /**
-     * 通过userId 生成cookie 并放入响应对象和 request;
+     * todo 通过userId 生成cookie 并放入响应对象和 request;
      *
      * @param request
      * @param response
